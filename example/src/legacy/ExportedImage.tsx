@@ -32,8 +32,8 @@ const generateImageURL = (
       ? process.env.nextImageExportOptimizer_storePicturesInWEBP == "true"
       : true;
   if (
-    !["JPG", "JPEG", "WEBP", "PNG", "AVIF", "GIF"].includes(
-      extension.toUpperCase()
+    !["jpg", "jpeg", "webp", "png", "avif", "gif"].includes(
+      extension.toLowerCase()
     )
   ) {
     // The images has an unsupported extension
@@ -46,9 +46,9 @@ const generateImageURL = (
 
   if (
     useWebp &&
-    ["JPG", "JPEG", "PNG", "GIF"].includes(extension.toUpperCase())
+    ["jpg", "jpeg", "png", "gif"].includes(extension.toLowerCase())
   ) {
-    processedExtension = "WEBP";
+    processedExtension = "webp";
   }
 
   let correctedPath = path;
@@ -65,13 +65,13 @@ const generateImageURL = (
   }
 
   const exportFolderName =
-    process.env.nextImageExportOptimizer_exportFolderName ||
-    "nextImageExportOptimizer";
+    process.env.nextImageExportOptimizer_outputFolderPath ||
+    "public/output";
   const basePathPrefixForStaticImages = basePath ? basePath + "/" : "";
 
   let generatedImageURL = `${
     isStaticImage ? basePathPrefixForStaticImages : correctedPath
-  }${exportFolderName}/${filename}-opt-${width}.${processedExtension.toUpperCase()}`;
+  }${exportFolderName}/${filename}-opt-${width}.${processedExtension.toLowerCase()}`;
 
   // if the generatedImageURL is not starting with a slash, then we add one as long as it is not a remote image
   if (!isRemoteImage && generatedImageURL.charAt(0) !== "/") {

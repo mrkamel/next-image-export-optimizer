@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   env: {
     nextImageExportOptimizer_imageFolderPath: "public/images",
     nextImageExportOptimizer_exportFolderPath: "out",
-    nextImageExportOptimizer_exportFolderName: "nextImageExportOptimizer",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "true",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",

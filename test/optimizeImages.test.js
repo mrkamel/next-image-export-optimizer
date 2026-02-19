@@ -20,7 +20,11 @@ const filterForImages = (file) => {
   return ["JPG", "JPEG", "WEBP", "PNG", "GIF", "AVIF"].includes(extension);
 };
 const getFiles = (dirPath) =>
-  fs.existsSync(dirPath) ? fs.readdirSync(dirPath) : [];
+  fs.existsSync(dirPath) ? fs.readdirSync(dirPath).filter(f => {
+    // Filter out directories
+    const fullPath = require("path").join(dirPath, f);
+    return fs.statSync(fullPath).isFile();
+  }) : [];
 
 const legacyConfig = `module.exports = {
   images: {
@@ -33,6 +37,7 @@ const legacyConfig = `module.exports = {
   env: {
     storePicturesInWEBP: "false",
     generateAndUseBlurImages: "true",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
   },
 };
 `;
@@ -47,7 +52,7 @@ const newConfig = `module.exports = {
   env: {
     nextImageExportOptimizer_imageFolderPath: "public/images",
     nextImageExportOptimizer_exportFolderPath: "out",
-    nextImageExportOptimizer_exportFolderName: "nextImageExportOptimizer",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "true",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",
@@ -66,6 +71,7 @@ const newConfigJpeg = `module.exports = {
   env: {
     nextImageExportOptimizer_imageFolderPath: "public/images",
     nextImageExportOptimizer_exportFolderPath: "out",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "false",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",
@@ -87,7 +93,7 @@ const newConfigExportFolderName = `module.exports = {
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "false",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",
-    nextImageExportOptimizer_exportFolderName: "nextImageExportOptimizer2",
+    nextImageExportOptimizer_outputFolderPath: "public/output2",
   },
 };
 `;
@@ -103,7 +109,7 @@ const newConfigBasePath = `module.exports = {
   env: {
     nextImageExportOptimizer_imageFolderPath: "public/images",
     nextImageExportOptimizer_exportFolderPath: "out",
-    nextImageExportOptimizer_exportFolderName: "nextImageExportOptimizer",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "true",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",
@@ -113,96 +119,99 @@ const newConfigBasePath = `module.exports = {
 `;
 
 async function testConfig(config) {
-  deleteFolder("example/public/images/nextImageExportOptimizer");
+  // Clean up export folders (new structure: public/nextImageExportOptimizer/)
   deleteFolder("example/public/nextImageExportOptimizer");
-  deleteFolder("example/public/images/subfolder/nextImageExportOptimizer");
-  deleteFolder(
-    "example/public/images/subfolder/subfolder2/nextImageExportOptimizer"
-  );
-  deleteFolder("example/public/images/nextImageExportOptimizer2");
   deleteFolder("example/public/nextImageExportOptimizer2");
-  deleteFolder("example/public/images/subfolder/nextImageExportOptimizer2");
-  deleteFolder(
-    "example/public/images/subfolder/subfolder2/nextImageExportOptimizer2"
-  );
+
   // write config file for the to be tested configuration variables to the folder
   fs.writeFileSync("example/next.config.ts", config);
 
-  deleteFolder("example/out/images/nextImageExportOptimizer");
+  // Clean up build output folders
   deleteFolder("example/out/nextImageExportOptimizer");
-  deleteFolder("example/out/images/subfolder/nextImageExportOptimizer");
-  deleteFolder(
-    "example/out/images/subfolder/subfolder2/nextImageExportOptimizer"
-  );
-  deleteFolder("example/out/images/nextImageExportOptimizer2");
   deleteFolder("example/out/nextImageExportOptimizer2");
-  deleteFolder("example/out/images/subfolder/nextImageExportOptimizer2");
-  deleteFolder(
-    "example/out/images/subfolder/subfolder2/nextImageExportOptimizer2"
-  );
 
   execSync(
     "npm run build && cd example/ && npm run export && node ../dist/optimizeImages.js"
   );
 
+  // New structure: all images in {exportFolderName}/ with subdirectory structure preserved
+  // Root level images (from public/images/)
   const allFilesInImageFolder = getFiles(
-    "example/public/images/nextImageExportOptimizer"
+    "example/public/nextImageExportOptimizer"
   );
   const allImagesInImageFolder = allFilesInImageFolder.filter(filterForImages);
+
+  // Static images (from .next/static/media/) go to {exportFolderName}/_next/static/media/
   const allFilesInStaticImageFolder = getFiles(
-    "example/public/nextImageExportOptimizer"
+    "example/public/nextImageExportOptimizer/_next/static/media"
   );
   const allImagesInStaticImageFolder =
     allFilesInStaticImageFolder.filter(filterForImages);
 
+  // Remote images go to {exportFolderName}/remoteImages/
+  const allFilesInRemoteImageFolder = getFiles(
+    "example/public/nextImageExportOptimizer/remoteImages"
+  );
+  const allImagesInRemoteImageFolder =
+    allFilesInRemoteImageFolder.filter(filterForImages);
+
+  // Subfolder images go to {exportFolderName}/subfolder/
   const allFilesInImageSubFolder = getFiles(
-    "example/public/images/subfolder/nextImageExportOptimizer"
+    "example/public/nextImageExportOptimizer/subfolder"
   );
   const allImagesInImageSubFolder =
     allFilesInImageSubFolder.filter(filterForImages);
 
+  // Build output folders
   const allFilesInImageBuildFolder = getFiles(
-    "example/out/images/nextImageExportOptimizer"
+    "example/out/nextImageExportOptimizer"
   );
   const allFilesInStaticImageBuildFolder = getFiles(
-    "example/out/nextImageExportOptimizer"
+    "example/out/nextImageExportOptimizer/_next/static/media"
   );
 
   const allFilesInImageBuildSubFolder = getFiles(
-    "example/out/images/subfolder/nextImageExportOptimizer"
+    "example/out/nextImageExportOptimizer/subfolder"
   );
 
-  // For custom export folder name
+  // For custom export folder name (nextImageExportOptimizer2)
   const allFilesInImageFolderCustomExportFolder = getFiles(
-    "example/public/images/nextImageExportOptimizer2"
+    "example/public/nextImageExportOptimizer2"
   );
 
   const allImagesInImageFolderCustomExportFolder =
     allFilesInImageFolderCustomExportFolder.filter(filterForImages);
   const allFilesInStaticImageFolderCustomExportFolder = getFiles(
-    "example/public/nextImageExportOptimizer2"
+    "example/public/nextImageExportOptimizer2/_next/static/media"
   );
 
   const allImagesInStaticImageFolderCustomExportFolder =
     allFilesInStaticImageFolderCustomExportFolder.filter(filterForImages);
 
+  // Remote images for custom export folder
+  const allFilesInRemoteImageFolderCustomExportFolder = getFiles(
+    "example/public/nextImageExportOptimizer2/remoteImages"
+  );
+  const allImagesInRemoteImageFolderCustomExportFolder =
+    allFilesInRemoteImageFolderCustomExportFolder.filter(filterForImages);
+
   const allFilesInImageSubFolderCustomExportFolder = getFiles(
-    "example/public/images/subfolder/nextImageExportOptimizer2"
+    "example/public/nextImageExportOptimizer2/subfolder"
   );
 
   const allImagesInImageSubFolderCustomExportFolder =
     allFilesInImageSubFolderCustomExportFolder.filter(filterForImages);
 
   const allFilesInImageBuildFolderCustomExportFolder = getFiles(
-    "example/out/images/nextImageExportOptimizer2"
-  );
-
-  const allFilesInStaticImageBuildFolderCustomExportFolder = getFiles(
     "example/out/nextImageExportOptimizer2"
   );
 
+  const allFilesInStaticImageBuildFolderCustomExportFolder = getFiles(
+    "example/out/nextImageExportOptimizer2/_next/static/media"
+  );
+
   const allFilesInImageBuildSubFolderCustomExportFolder = getFiles(
-    "example/out/images/subfolder/nextImageExportOptimizer2"
+    "example/out/nextImageExportOptimizer2/subfolder"
   );
 
   if (
@@ -212,7 +221,7 @@ async function testConfig(config) {
   ) {
     expect(allImagesInImageFolder).toMatchSnapshot();
     expect(allImagesInStaticImageFolder).toMatchSnapshot();
-
+    expect(allImagesInRemoteImageFolder).toMatchSnapshot();
     expect(allImagesInImageSubFolder).toMatchSnapshot();
     expect(allFilesInImageBuildFolder).toMatchSnapshot();
     expect(allFilesInStaticImageFolder).toMatchSnapshot();
@@ -220,6 +229,7 @@ async function testConfig(config) {
   } else if (config === newConfigExportFolderName) {
     expect(allImagesInImageFolderCustomExportFolder).toMatchSnapshot();
     expect(allImagesInStaticImageFolderCustomExportFolder).toMatchSnapshot();
+    expect(allImagesInRemoteImageFolderCustomExportFolder).toMatchSnapshot();
     expect(allImagesInImageSubFolderCustomExportFolder).toMatchSnapshot();
     expect(allFilesInImageBuildFolderCustomExportFolder).toMatchSnapshot();
     expect(
@@ -229,6 +239,7 @@ async function testConfig(config) {
   } else {
     expect(allImagesInImageFolder).toMatchSnapshot();
     expect(allImagesInStaticImageFolder).toMatchSnapshot();
+    expect(allImagesInRemoteImageFolder).toMatchSnapshot();
     expect(allImagesInImageSubFolder).toMatchSnapshot();
     expect(allFilesInImageBuildFolder).toMatchSnapshot();
     expect(allFilesInStaticImageBuildFolder).toMatchSnapshot();
@@ -237,28 +248,36 @@ async function testConfig(config) {
 
   const imageFolders = [
     {
-      basePath: "example/public/images/nextImageExportOptimizer",
+      basePath: "example/public/nextImageExportOptimizer",
       imageFileArray: allImagesInImageFolder,
     },
     {
-      basePath: "example/public/images/subfolder/nextImageExportOptimizer",
-      imageFileArray: allFilesInImageBuildSubFolder,
+      basePath: "example/public/nextImageExportOptimizer/subfolder",
+      imageFileArray: allImagesInImageSubFolder,
     },
     {
-      basePath: "example/public/nextImageExportOptimizer",
+      basePath: "example/public/nextImageExportOptimizer/_next/static/media",
       imageFileArray: allImagesInStaticImageFolder,
     },
     {
-      basePath: "example/public/images/nextImageExportOptimizer2",
-      imageFileArray: allImagesInImageFolderCustomExportFolder,
-    },
-    {
-      basePath: "example/public/images/subfolder/nextImageExportOptimizer2",
-      imageFileArray: allFilesInImageBuildSubFolderCustomExportFolder,
+      basePath: "example/public/nextImageExportOptimizer/remoteImages",
+      imageFileArray: allImagesInRemoteImageFolder,
     },
     {
       basePath: "example/public/nextImageExportOptimizer2",
+      imageFileArray: allImagesInImageFolderCustomExportFolder,
+    },
+    {
+      basePath: "example/public/nextImageExportOptimizer2/subfolder",
+      imageFileArray: allImagesInImageSubFolderCustomExportFolder,
+    },
+    {
+      basePath: "example/public/nextImageExportOptimizer2/_next/static/media",
       imageFileArray: allImagesInStaticImageFolderCustomExportFolder,
+    },
+    {
+      basePath: "example/public/nextImageExportOptimizer2/remoteImages",
+      imageFileArray: allImagesInRemoteImageFolderCustomExportFolder,
     },
   ];
   for (let index = 0; index < imageFolders.length; index++) {
@@ -282,16 +301,14 @@ async function testConfig(config) {
       config === legacyConfig ||
       config === newConfigBasePath
     ) {
-      if (index == 0 || index == 2) {
-        expect(imageFileStats).toMatchSnapshot();
-      } else if (index === 1) {
+      // Check metadata for root (0), subfolder (1), static (2), and remote (3) images
+      if (index <= 3) {
         expect(imageFileStats).toMatchSnapshot();
       }
     }
     if (config === newConfigJpeg) {
-      if (index == 0 || index == 2) {
-        expect(imageFileStats).toMatchSnapshot();
-      } else if (index === 1) {
+      // Check metadata for root (0), subfolder (1), static (2), and remote (3) images
+      if (index <= 3) {
         expect(imageFileStats).toMatchSnapshot();
       }
     }

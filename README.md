@@ -60,9 +60,10 @@ module.exports = {
     nextImageExportOptimizer_exportFolderPath: "out",
     nextImageExportOptimizer_quality: "75",
     nextImageExportOptimizer_storePicturesInWEBP: "true",
-    nextImageExportOptimizer_exportFolderName: "nextImageExportOptimizer",
+    nextImageExportOptimizer_outputFolderPath: "public/output",
     nextImageExportOptimizer_generateAndUseBlurImages: "true",
     nextImageExportOptimizer_remoteImageCacheTTL: "0",
+    nextImageExportOptimizer_remoteImagesFolderName: "remoteImages",
   },
 };
 ```
@@ -183,6 +184,18 @@ module.exports = {
 };
 ```
 
+You can also customize the folder name where remote images are stored by setting `nextImageExportOptimizer_remoteImagesFolderName`. The default is `remoteImages`.
+
+```javascript
+module.exports = {
+  env: {
+    // ... other env variables
+    nextImageExportOptimizer_remoteImagesFolderName: "remoteImages",
+  },
+  // ... other config options
+};
+```
+
 ### Custom next.config.js path
 
 If your Next.js project is not at the root directory where you are running the commands, for example when you are using a monorepo, you can specify the location of the `next.config.js` as an argument to the script:
@@ -235,9 +248,9 @@ import testPictureStatic from "PATH_TO_IMAGE/test_static.jpg";
 
 If you do not want the automatic generation of tiny, blurry placeholder images, set the `nextImageExportOptimizer_generateAndUseBlurImages` environment variable to `false` and set the `placeholder` prop from the **\<ExportedImage />** component to `empty`.
 
-### Custom export folder name
+### Custom output folder path
 
-If you want to rename the export folder name, set the `nextImageExportOptimizer_exportFolderPath` environment variable to the desired folder name. The default is `nextImageExportOptimizer`.
+If you want to change the output folder path for optimized images, set the `nextImageExportOptimizer_outputFolderPath` environment variable. The default is `public/output`.
 
 ### Image format
 

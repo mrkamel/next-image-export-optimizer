@@ -1,5 +1,7 @@
 import { ImageObject } from "./ImageObject";
 const fs = require("fs");
+const path = require("path");
+
 module.exports = function getAllFilesAsObject(
   basePath: string,
   dirPath: string,
@@ -11,17 +13,19 @@ module.exports = function getAllFilesAsObject(
     let files = fs.readdirSync(dirPath);
 
     files.forEach(function (file: string) {
-      if (
-        fs.statSync(dirPath + "/" + file).isDirectory() &&
-        file !== exportFolderName &&
-        file !== "nextImageExportOptimizer" // default export folder name
-      ) {
-        arrayOfFiles = getAllFilesAsObject(
-          basePath,
-          dirPath + "/" + file,
-          exportFolderName,
-          arrayOfFiles
-        );
+      const fullPath = path.join(dirPath, file);
+      if (fs.statSync(fullPath).isDirectory()) {
+        // Exclude the legacy default folder name "nextImageExportOptimizer"
+        // The new export folder (e.g., "public/export") is assumed to be
+        // outside the image folder, so no need to check for it
+        if (file !== "nextImageExportOptimizer") {
+          arrayOfFiles = getAllFilesAsObject(
+            basePath,
+            fullPath,
+            exportFolderName,
+            arrayOfFiles
+          );
+        }
       } else {
         const dirPathWithoutBasePath = dirPath
           .replace(basePath, "") // remove the basePath for later path composition

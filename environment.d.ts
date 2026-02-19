@@ -5,7 +5,7 @@ declare global {
       generateAndUseBlurImages: string | undefined;
       nextImageExportOptimizer_storePicturesInWEBP: string | undefined;
       nextImageExportOptimizer_generateAndUseBlurImages: string | undefined;
-      nextImageExportOptimizer_exportFolderName: string | undefined;
+      nextImageExportOptimizer_outputFolderPath: string | undefined;
       nextImageExportOptimizer_quality: string | undefined;
       nextImageExportOptimizer_remoteImageCacheTTL: string | undefined;
       __NEXT_IMAGE_OPTS: { deviceSizes: string[]; imageSizes: string[] };

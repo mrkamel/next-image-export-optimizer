@@ -99,6 +99,7 @@ const nextImageExportOptimizer = async function () {
   let blurSize: number[] = [];
   let remoteImageCacheTTL = 0;
   let exportFolderName = "nextImageExportOptimizer";
+  let remoteImagesFolderName = "remoteImages";
   let remoteImageFileName = "remoteOptimizedImages.js";
 
   let remoteImageFilenames: {
@@ -176,8 +177,12 @@ const nextImageExportOptimizer = async function () {
     ) {
       blurSize = [10];
     }
-    if (newPath.nextImageExportOptimizer_exportFolderName !== undefined) {
-      exportFolderName = newPath.nextImageExportOptimizer_exportFolderName;
+    if (newPath.nextImageExportOptimizer_outputFolderPath !== undefined) {
+      exportFolderName = newPath.nextImageExportOptimizer_outputFolderPath;
+    }
+    if (newPath.nextImageExportOptimizer_remoteImagesFolderName !== undefined) {
+      remoteImagesFolderName =
+        newPath.nextImageExportOptimizer_remoteImagesFolderName;
     }
     if (newPath.nextImageExportOptimizer_remoteImageCacheTTL !== undefined) {
       remoteImageCacheTTL = Number(
@@ -294,7 +299,10 @@ const nextImageExportOptimizer = async function () {
   let imageHashes: {
     [key: string]: string;
   } = {};
-  const hashFilePath = `${imageFolderPath}/next-image-export-optimizer-hashes.json`;
+  const hashFilePath = path.join(
+    exportFolderName,
+    "next-image-export-optimizer-hashes.json"
+  );
   try {
     let rawData = fs.readFileSync(hashFilePath);
     imageHashes = JSON.parse(rawData);
@@ -411,7 +419,7 @@ const nextImageExportOptimizer = async function () {
       let fileDirectory = allImagesInImageFolder[index].dirPathWithoutBasePath;
       let basePath = allImagesInImageFolder[index].basePath;
 
-      let extension = file.split(".").pop()!.toUpperCase();
+      let extension = file.split(".").pop()!.toLowerCase();
       const imageBuffer = fs.readFileSync(
         path.join(basePath, fileDirectory, file)
       );
@@ -440,23 +448,33 @@ const nextImageExportOptimizer = async function () {
 
         const filename = path.parse(file).name;
         if (storePicturesInWEBP) {
-          extension = "WEBP";
+          extension = "webp";
         }
 
         const isStaticImage = basePath === staticImageFolderPath;
-        // for a static image, we copy the image to public/nextImageExportOptimizer or public/${exportFolderName}
-        // and not the staticImageFolderPath
-        // as the static image folder is deleted before each build
-        const basePathToStoreOptimizedImages =
-          isStaticImage ||
-          basePath === path.join(nextConfigFolder, folderNameForRemoteImages)
-            ? "public"
-            : basePath;
+        const isRemoteImage =
+          basePath === path.join(nextConfigFolder, folderNameForRemoteImages);
+
+        // Compute the relative path within the export folder
+        // For public images: strip imageFolderPath prefix, keep subdirectory structure
+        // For static images: use _next/static/media/
+        // For remote images: use remoteImages/
+        let relativeExportPath: string;
+        if (isStaticImage) {
+          relativeExportPath = path.join("_next/static/media", fileDirectory);
+        } else if (isRemoteImage) {
+          relativeExportPath = remoteImagesFolderName;
+        } else {
+          // Regular public images - strip the imageFolderPath prefix to get relative path
+          // e.g., if imageFolderPath is "public/images" and fileDirectory is "articles/hero"
+          // relativeExportPath becomes "articles/hero"
+          relativeExportPath = fileDirectory;
+        }
+
         const optimizedFileNameAndPath = path.join(
-          basePathToStoreOptimizedImages,
-          fileDirectory,
-          exportFolderName,
-          `${filename}-opt-${width}.${extension.toUpperCase()}`
+          exportFolderName, // e.g., "public/export"
+          relativeExportPath,
+          `${filename}-opt-${width}.${extension.toLowerCase()}`
         );
 
         // Check if file is already in hash and specific size and quality is present in the
@@ -538,7 +556,7 @@ const nextImageExportOptimizer = async function () {
           transformer.resize(width);
         }
 
-        if (extension === "AVIF") {
+        if (extension === "avif") {
           if (transformer.avif) {
             const avifQuality = quality - 15;
             transformer.avif({
@@ -548,13 +566,13 @@ const nextImageExportOptimizer = async function () {
           } else {
             transformer.webp({ quality });
           }
-        } else if (extension === "WEBP" || storePicturesInWEBP) {
+        } else if (extension === "webp" || storePicturesInWEBP) {
           transformer.webp({ quality });
-        } else if (extension === "PNG") {
+        } else if (extension === "png") {
           transformer.png({ quality });
-        } else if (extension === "JPEG" || extension === "JPG") {
+        } else if (extension === "jpeg" || extension === "jpg") {
           transformer.jpeg({ quality });
-        } else if (extension === "GIF") {
+        } else if (extension === "gif") {
           transformer.gif({ quality });
         }
 
@@ -612,30 +630,8 @@ const nextImageExportOptimizer = async function () {
     fs.copyFileSync(filePath, fileInBuildFolder);
   }
 
-  function findSubfolders(
-    rootPath: string,
-    folderName: string,
-    results: string[] = []
-  ) {
-    const items = fs.readdirSync(rootPath);
-    for (const item of items) {
-      const itemPath = path.join(rootPath, item);
-      const stat = fs.statSync(itemPath);
-      if (stat.isDirectory()) {
-        if (item === folderName) {
-          results.push(itemPath);
-        }
-        findSubfolders(itemPath, folderName, results);
-      }
-    }
-    return results;
-  }
-
-  const optimizedImagesFolders = findSubfolders(
-    imageFolderPath,
-    exportFolderName
-  );
-  optimizedImagesFolders.push(`public/${exportFolderName}`);
+  // The export folder itself contains all optimized images
+  const optimizedImagesFolders = [exportFolderName];
 
   function findImageFiles(
     folderPath: string,
@@ -662,7 +658,7 @@ const nextImageExportOptimizer = async function () {
     return results;
   }
 
-  const imageExtensions = [".PNG", ".GIF", ".JPG", ".JPEG", ".AVIF", ".WEBP"];
+  const imageExtensions = [".png", ".gif", ".jpg", ".jpeg", ".avif", ".webp"];
 
   const imagePaths: string[] = [];
   for (const subfolderPath of optimizedImagesFolders) {

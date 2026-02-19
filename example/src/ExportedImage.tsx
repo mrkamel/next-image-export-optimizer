@@ -26,15 +26,15 @@ const generateImageURL = (
   basePath: string | undefined,
   isRemoteImage: boolean = false
 ) => {
-  const { filename, path, extension } = splitFilePath({ filePath: src });
+  const { filename, path: srcPath, extension } = splitFilePath({ filePath: src });
   const useWebp =
     process.env.nextImageExportOptimizer_storePicturesInWEBP != undefined
       ? process.env.nextImageExportOptimizer_storePicturesInWEBP == "true"
       : true;
 
   if (
-    !["JPG", "JPEG", "WEBP", "PNG", "AVIF", "GIF"].includes(
-      extension.toUpperCase()
+    !["jpg", "jpeg", "webp", "png", "avif", "gif"].includes(
+      extension.toLowerCase()
     )
   ) {
     // The images has an unsupported extension
@@ -47,51 +47,68 @@ const generateImageURL = (
 
   if (
     useWebp &&
-    ["JPG", "JPEG", "PNG", "GIF"].includes(extension.toUpperCase())
+    ["jpg", "jpeg", "png", "gif"].includes(extension.toLowerCase())
   ) {
-    processedExtension = "WEBP";
-  }
-
-  let correctedPath = path;
-  const lastChar = correctedPath?.substr(-1); // Selects the last character
-  if (lastChar != "/") {
-    // If the last character is not a slash
-    correctedPath = correctedPath + "/"; // Append a slash to it.
+    processedExtension = "webp";
   }
 
   const isStaticImage = src.includes("_next/static/media");
 
-  if (basePath) {
-    if (
-      basePath.endsWith("/") &&
-      correctedPath &&
-      correctedPath.startsWith("/")
-    ) {
-      correctedPath = basePath + correctedPath.slice(1);
-    } else if (
-      !basePath.endsWith("/") &&
-      correctedPath &&
-      !correctedPath.startsWith("/")
-    ) {
-      correctedPath = basePath + "/" + correctedPath;
+  // Get export folder name and convert to URL prefix
+  // e.g., "public/export" → "/export"
+  const exportFolderName =
+    process.env.nextImageExportOptimizer_outputFolderPath ||
+    "public/output";
+  const exportFolderUrlPrefix =
+    "/" + exportFolderName.replace(/^public\/?/, "");
+
+  // Get image folder path and convert to URL prefix
+  // e.g., "public/images" → "/images"
+  const imageFolderPath =
+    process.env.nextImageExportOptimizer_imageFolderPath || "public/images";
+  const imageFolderUrlPrefix = "/" + imageFolderPath.replace(/^public\/?/, "");
+
+  // Get remote images folder name
+  const remoteImagesFolderName =
+    process.env.nextImageExportOptimizer_remoteImagesFolderName || "remoteImages";
+
+  let relativePath: string;
+
+  if (isStaticImage) {
+    // Static images go to {exportFolder}/_next/static/media/
+    relativePath = "/_next/static/media/";
+  } else if (isRemoteImage) {
+    // Remote images go to {exportFolder}/{remoteImagesFolderName}/
+    relativePath = `/${remoteImagesFolderName}/`;
+  } else {
+    // Regular images: strip the image folder URL prefix to get the relative path
+    // e.g., "/images/articles/hero/" → "/articles/hero/"
+    let correctedPath = srcPath || "";
+    // Ensure path ends with /
+    if (!correctedPath.endsWith("/")) {
+      correctedPath = correctedPath + "/";
+    }
+    // Strip the image folder prefix
+    if (correctedPath.startsWith(imageFolderUrlPrefix)) {
+      relativePath = correctedPath.slice(imageFolderUrlPrefix.length);
+      // Ensure it starts with /
+      if (!relativePath.startsWith("/")) {
+        relativePath = "/" + relativePath;
+      }
     } else {
-      correctedPath = basePath + correctedPath;
+      // If the path doesn't start with the image folder prefix, use as-is
+      relativePath = correctedPath.startsWith("/")
+        ? correctedPath
+        : "/" + correctedPath;
     }
   }
 
-  const exportFolderName =
-    process.env.nextImageExportOptimizer_exportFolderName ||
-    "nextImageExportOptimizer";
-  const basePathPrefixForStaticImages = basePath ? basePath + "/" : "";
+  // Construct the final URL: {basePath}{exportFolderUrlPrefix}{relativePath}{filename}-opt-{width}.{ext}
+  const basePathPrefix = basePath || "";
+  let generatedImageURL = `${basePathPrefix}${exportFolderUrlPrefix}${relativePath}${filename}-opt-${width}.${processedExtension.toLowerCase()}`;
 
-  let generatedImageURL = `${
-    isStaticImage ? basePathPrefixForStaticImages : correctedPath
-  }${exportFolderName}/${filename}-opt-${width}.${processedExtension.toUpperCase()}`;
-
-  // if the generatedImageURL is not starting with a slash, then we add one as long as it is not a remote image
-  if (!isRemoteImage && generatedImageURL.charAt(0) !== "/") {
-    generatedImageURL = "/" + generatedImageURL;
-  }
+  // Clean up any double slashes (except after protocol)
+  generatedImageURL = generatedImageURL.replace(/([^:])\/+/g, "$1/");
 
   return generatedImageURL;
 };
@@ -213,6 +230,135 @@ export interface ExportedImageProps
   basePath?: string;
 }
 
+export interface GetExportedImagePropsOptions {
+  src: string | StaticImageData;
+  width?: number;
+  height?: number;
+  sizes?: string;
+  basePath?: string;
+  unoptimized?: boolean;
+}
+
+export interface ExportedImagePropsResult {
+  props: {
+    src: string;
+    srcSet: string;
+    sizes: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+/**
+ * Get image props for use with a standard <img> element or other components.
+ * Similar to Next.js's getImageProps but for exported/optimized images.
+ */
+export function getExportedImageProps(
+  options: GetExportedImagePropsOptions
+): ExportedImagePropsResult {
+  const { src, width, height, sizes, basePath = "", unoptimized = false } = options;
+
+  const isStaticImage = typeof src === "object";
+  const _src = isStaticImage ? src.src : src;
+  const originalImageWidth = isStaticImage ? src.width : undefined;
+  const originalImageHeight = isStaticImage ? src.height : undefined;
+
+  // Compute dimensions
+  const computedWidth = width || originalImageWidth;
+  const computedHeight = height || originalImageHeight;
+
+  // Only use optimized images in production (they don't exist until build)
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Get device and image sizes from env or use defaults
+  const deviceSizes = (
+    process.env.__NEXT_IMAGE_OPTS?.deviceSizes || [
+      640, 750, 828, 1080, 1200, 1920, 2048, 3840,
+    ]
+  ).map(Number);
+  const imageSizes = (
+    process.env.__NEXT_IMAGE_OPTS?.imageSizes || [
+      16, 32, 48, 64, 96, 128, 256, 384,
+    ]
+  ).map(Number);
+
+  let allSizes: number[] = [...imageSizes, ...deviceSizes];
+  allSizes = allSizes.filter((v, i, a) => a.indexOf(v) === i);
+  allSizes.sort((a, b) => a - b);
+
+  if (!isProduction || unoptimized) {
+    let imageSrc = _src;
+    if (!_src.startsWith("/") && !_src.startsWith("http")) {
+      imageSrc = "/" + _src;
+    }
+
+    const quality = process.env.nextImageExportOptimizer_quality || "75";
+
+    // In dev, use Next.js image optimization endpoint (same as getImageProps)
+    const encodedSrc = encodeURIComponent(imageSrc);
+    const srcSet = allSizes
+      .map((size) => `/_next/image?url=${encodedSrc}&w=${size}&q=${quality} ${size}w`)
+      .join(", ");
+
+    const defaultSize = allSizes[allSizes.length - 1] || 3840;
+    const defaultSrc = `/_next/image?url=${encodedSrc}&w=${defaultSize}&q=${quality}`;
+
+    return {
+      props: {
+        src: defaultSrc,
+        srcSet,
+        sizes: sizes || "100vw",
+        ...(computedWidth && { width: computedWidth }),
+        ...(computedHeight && { height: computedHeight }),
+      },
+    };
+  }
+
+  // For static images, limit sizes to those <= original width
+  let effectiveSizes = allSizes;
+  if (isStaticImage && originalImageWidth) {
+    // Find the next largest size >= original width
+    let nextLargestSize = originalImageWidth;
+    for (const size of allSizes) {
+      if (size >= originalImageWidth) {
+        nextLargestSize = size;
+        break;
+      }
+    }
+    effectiveSizes = allSizes.filter((s) => s <= nextLargestSize);
+  }
+
+  // Generate srcSet
+  const isRemoteImage = _src.startsWith("http");
+  const srcSetEntries = effectiveSizes.map((size) => {
+    let url: string;
+    if (isRemoteImage) {
+      url = imageURLForRemoteImage({ src: _src, width: size, basePath });
+    } else {
+      url = generateImageURL(_src, size, basePath);
+    }
+    return `${url} ${size}w`;
+  });
+
+  const srcSet = srcSetEntries.join(", ");
+
+  // Use the largest size as the default src
+  const defaultSize = effectiveSizes[effectiveSizes.length - 1] || 1080;
+  const defaultSrc = isRemoteImage
+    ? imageURLForRemoteImage({ src: _src, width: defaultSize, basePath })
+    : generateImageURL(_src, defaultSize, basePath);
+
+  return {
+    props: {
+      src: defaultSrc,
+      srcSet,
+      sizes: sizes || "100vw",
+      ...(computedWidth && { width: computedWidth }),
+      ...(computedHeight && { height: computedHeight }),
+    },
+  };
+}
+
 const ExportedImage = forwardRef<HTMLImageElement | null, ExportedImageProps>(
   (
     {
@@ -224,7 +370,7 @@ const ExportedImage = forwardRef<HTMLImageElement | null, ExportedImageProps>(
       height,
       onLoad,
       unoptimized,
-      placeholder = "blur",
+      placeholder = process.env.nextImageExportOptimizer_generateAndUseBlurImages === "false" ? "empty" : "blur",
       basePath = "",
       alt = "",
       blurDataURL,
@@ -237,6 +383,10 @@ const ExportedImage = forwardRef<HTMLImageElement | null, ExportedImageProps>(
   ) => {
     const [imageError, setImageError] = useState(false);
     const automaticallyCalculatedBlurDataURL = useMemo(() => {
+      // Skip blur URL generation if blur images are disabled
+      if (process.env.nextImageExportOptimizer_generateAndUseBlurImages === "false") {
+        return undefined;
+      }
       if (blurDataURL) {
         // use the user provided blurDataURL if present
         return blurDataURL;
