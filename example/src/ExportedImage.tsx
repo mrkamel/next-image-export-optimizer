@@ -1,7 +1,5 @@
-"use client";
-
-import Image, { ImageProps, StaticImageData } from "next/image";
-import React, { forwardRef, useCallback, useMemo, useState } from "react";
+import { StaticImageData } from "next/image";
+import React, { forwardRef } from "react";
 
 const splitFilePath = ({ filePath }: { filePath: string }) => {
   const filenameWithExtension =
@@ -37,12 +35,9 @@ const generateImageURL = (
       extension.toLowerCase()
     )
   ) {
-    // The images has an unsupported extension
-    // We will return the src
     return src;
   }
-  // If the images are stored as WEBP by the package, then we should change
-  // the extension to WEBP to load them correctly
+
   let processedExtension = extension;
 
   if (
@@ -54,67 +49,54 @@ const generateImageURL = (
 
   const isStaticImage = src.includes("_next/static/media");
 
-  // Get export folder name and convert to URL prefix
-  // e.g., "public/export" → "/export"
   const exportFolderName =
     process.env.nextImageExportOptimizer_outputFolderPath ||
     "public/output";
   const exportFolderUrlPrefix =
     "/" + exportFolderName.replace(/^public\/?/, "");
 
-  // Get image folder path and convert to URL prefix
-  // e.g., "public/images" → "/images"
   const imageFolderPath =
     process.env.nextImageExportOptimizer_imageFolderPath || "public/images";
   const imageFolderUrlPrefix = "/" + imageFolderPath.replace(/^public\/?/, "");
 
-  // Get remote images folder name
   const remoteImagesFolderName =
     process.env.nextImageExportOptimizer_remoteImagesFolderName || "remoteImages";
 
   let relativePath: string;
 
   if (isStaticImage) {
-    // Static images go to {exportFolder}/_next/static/media/
     relativePath = "/_next/static/media/";
   } else if (isRemoteImage) {
-    // Remote images go to {exportFolder}/{remoteImagesFolderName}/
     relativePath = `/${remoteImagesFolderName}/`;
   } else {
-    // Regular images: strip the image folder URL prefix to get the relative path
-    // e.g., "/images/articles/hero/" → "/articles/hero/"
     let correctedPath = srcPath || "";
-    // Ensure path ends with /
     if (!correctedPath.endsWith("/")) {
       correctedPath = correctedPath + "/";
     }
-    // Strip the image folder prefix
     if (correctedPath.startsWith(imageFolderUrlPrefix)) {
       relativePath = correctedPath.slice(imageFolderUrlPrefix.length);
-      // Ensure it starts with /
       if (!relativePath.startsWith("/")) {
         relativePath = "/" + relativePath;
       }
     } else {
-      // If the path doesn't start with the image folder prefix, use as-is
       relativePath = correctedPath.startsWith("/")
         ? correctedPath
         : "/" + correctedPath;
     }
   }
 
-  // Construct the final URL: {basePath}{exportFolderUrlPrefix}{relativePath}{filename}-opt-{width}.{ext}
   const basePathPrefix = basePath || "";
-  let generatedImageURL = `${basePathPrefix}${exportFolderUrlPrefix}${relativePath}${filename}-opt-${width}.${processedExtension.toLowerCase()}`;
+  const cdnUrl = process.env.NODE_ENV === "production"
+    ? (process.env.nextImageExportOptimizer_cdnUrl || "")
+    : "";
+  let generatedImageURL = `${cdnUrl}${basePathPrefix}${exportFolderUrlPrefix}${relativePath}${filename}-opt-${width}.${processedExtension.toLowerCase()}`;
 
-  // Clean up any double slashes (except after protocol)
   generatedImageURL = generatedImageURL.replace(/([^:])\/+/g, "$1/");
 
   return generatedImageURL;
 };
 
 // Credits to https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
-// This is a hash function that is used to generate a hash from the image URL
 const hashAlgorithm = (str: string, seed = 0) => {
   let h1 = 0xdeadbeef ^ seed,
     h2 = 0x41c6ce57 ^ seed;
@@ -154,86 +136,22 @@ const imageURLForRemoteImage = ({
   basePath: string | undefined;
 }) => {
   const encodedSrc = urlToFilename(src);
-
   return generateImageURL(encodedSrc, width, basePath, true);
 };
 
-const optimizedLoader = ({
-  src,
-  width,
-  basePath,
-}: {
-  src: string | StaticImageData;
-  width: number;
-  basePath: string | undefined;
-}) => {
-  const isStaticImage = typeof src === "object";
-  const _src = isStaticImage ? src.src : src;
-  const originalImageWidth = (isStaticImage && src.width) || undefined;
-
-  // if it is a static image, we can use the width of the original image to generate a reduced srcset that returns
-  // the same image url for widths that are larger than the original image
-  if (isStaticImage && originalImageWidth && width > originalImageWidth) {
-    const deviceSizes = (
-      process.env.__NEXT_IMAGE_OPTS?.deviceSizes || [
-        640, 750, 828, 1080, 1200, 1920, 2048, 3840,
-      ]
-    ).map(Number);
-    const imageSizes = (
-      process.env.__NEXT_IMAGE_OPTS?.imageSizes || [
-        16, 32, 48, 64, 96, 128, 256, 384,
-      ]
-    ).map(Number);
-    let allSizes: number[] = [...deviceSizes, ...imageSizes];
-    allSizes = allSizes.filter((v, i, a) => a.indexOf(v) === i);
-    allSizes.sort((a, b) => a - b);
-
-    // only use the width if it is smaller or equal to the next size in the allSizes array
-    let nextLargestSize = null;
-    for (let i = 0; i < allSizes.length; i++) {
-      if (
-        Number(allSizes[i]) >= originalImageWidth &&
-        (nextLargestSize === null || Number(allSizes[i]) < nextLargestSize)
-      ) {
-        nextLargestSize = Number(allSizes[i]);
-      }
-    }
-
-    if (nextLargestSize !== null) {
-      return generateImageURL(_src, nextLargestSize, basePath);
-    }
-  }
-
-  // Check if the image is a remote image (starts with http or https)
-  if (_src.startsWith("http")) {
-    return imageURLForRemoteImage({ src: _src, width, basePath });
-  }
-
-  return generateImageURL(_src, width, basePath);
-};
-
-const fallbackLoader = ({ src }: { src: string | StaticImageData }) => {
-  let _src = typeof src === "object" ? src.src : src;
-
-  const isRemoteImage = _src.startsWith("http");
-
-  // if the _src does not start with a slash, then we add one as long as it is not a remote image
-  if (!isRemoteImage && _src.charAt(0) !== "/") {
-    _src = "/" + _src;
-  }
-  return _src;
-};
-
 export interface ExportedImageProps
-  extends Omit<ImageProps, "src" | "loader" | "quality"> {
+  extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src" | "srcSet"> {
   src: string | StaticImageData;
   basePath?: string;
+  unoptimized?: boolean;
+  priority?: boolean;
+  fill?: boolean;
 }
 
 export interface GetExportedImagePropsOptions {
   src: string | StaticImageData;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   sizes?: string;
   basePath?: string;
   unoptimized?: boolean;
@@ -244,8 +162,8 @@ export interface ExportedImagePropsResult {
     src: string;
     srcSet: string;
     sizes: string;
-    width?: number;
-    height?: number;
+    width?: number | string;
+    height?: number | string;
   };
 }
 
@@ -263,14 +181,11 @@ export function getExportedImageProps(
   const originalImageWidth = isStaticImage ? src.width : undefined;
   const originalImageHeight = isStaticImage ? src.height : undefined;
 
-  // Compute dimensions
   const computedWidth = width || originalImageWidth;
   const computedHeight = height || originalImageHeight;
 
-  // Only use optimized images in production (they don't exist until build)
   const isProduction = process.env.NODE_ENV === "production";
 
-  // Get device and image sizes from env or use defaults
   const deviceSizes = (
     process.env.__NEXT_IMAGE_OPTS?.deviceSizes || [
       640, 750, 828, 1080, 1200, 1920, 2048, 3840,
@@ -293,8 +208,6 @@ export function getExportedImageProps(
     }
 
     const quality = process.env.nextImageExportOptimizer_quality || "75";
-
-    // In dev, use Next.js image optimization endpoint (same as getImageProps)
     const encodedSrc = encodeURIComponent(imageSrc);
     const srcSet = allSizes
       .map((size) => `/_next/image?url=${encodedSrc}&w=${size}&q=${quality} ${size}w`)
@@ -314,10 +227,8 @@ export function getExportedImageProps(
     };
   }
 
-  // For static images, limit sizes to those <= original width
   let effectiveSizes = allSizes;
   if (isStaticImage && originalImageWidth) {
-    // Find the next largest size >= original width
     let nextLargestSize = originalImageWidth;
     for (const size of allSizes) {
       if (size >= originalImageWidth) {
@@ -328,7 +239,6 @@ export function getExportedImageProps(
     effectiveSizes = allSizes.filter((s) => s <= nextLargestSize);
   }
 
-  // Generate srcSet
   const isRemoteImage = _src.startsWith("http");
   const srcSetEntries = effectiveSizes.map((size) => {
     let url: string;
@@ -342,7 +252,6 @@ export function getExportedImageProps(
 
   const srcSet = srcSetEntries.join(", ");
 
-  // Use the largest size as the default src
   const defaultSize = effectiveSizes[effectiveSizes.length - 1] || 1080;
   const defaultSrc = isRemoteImage
     ? imageURLForRemoteImage({ src: _src, width: defaultSize, basePath })
@@ -368,138 +277,55 @@ const ExportedImage = forwardRef<HTMLImageElement | null, ExportedImageProps>(
       className,
       width,
       height,
-      onLoad,
+      sizes,
       unoptimized,
-      placeholder = process.env.nextImageExportOptimizer_generateAndUseBlurImages === "false" ? "empty" : "blur",
       basePath = "",
       alt = "",
-      blurDataURL,
       style,
-      onError,
-      overrideSrc,
+      fill,
       ...rest
     },
     ref
   ) => {
-    const [imageError, setImageError] = useState(false);
-    const automaticallyCalculatedBlurDataURL = useMemo(() => {
-      // Skip blur URL generation if blur images are disabled
-      if (process.env.nextImageExportOptimizer_generateAndUseBlurImages === "false") {
-        return undefined;
-      }
-      if (blurDataURL) {
-        // use the user provided blurDataURL if present
-        return blurDataURL;
-      }
-      // check if the src is specified as a local file -> then it is an object
-      const isStaticImage = typeof src === "object";
-      let _src = isStaticImage ? src.src : src;
-
-      if (unoptimized === true) {
-        // return the src image when unoptimized
-        return _src;
-      }
-      // Check if the image is a remote image (starts with http or https)
-      if (_src.startsWith("http")) {
-        return imageURLForRemoteImage({ src: _src, width: 10, basePath });
-      }
-
-      // otherwise use the generated image of 10px width as a blurDataURL
-      return generateImageURL(_src, 10, basePath);
-    }, [blurDataURL, src, unoptimized, basePath]);
-
-    // check if the src is a SVG image -> then we should not use the blurDataURL and use unoptimized
     const isSVG =
       typeof src === "object" ? src.src.endsWith(".svg") : src.endsWith(".svg");
 
-    const [blurComplete, setBlurComplete] = useState(false);
+    const { props: imageProps } = getExportedImageProps({
+      src,
+      width: fill ? undefined : width,
+      height: fill ? undefined : height,
+      sizes,
+      basePath,
+      unoptimized: unoptimized || isSVG,
+    });
 
-    // Currently, we have to handle the blurDataURL ourselves as the new Image component
-    // is expecting a base64 encoded string, but the generated blurDataURL is a normal URL
-    const blurStyle =
-      placeholder === "blur" &&
-      !isSVG &&
-      automaticallyCalculatedBlurDataURL &&
-      automaticallyCalculatedBlurDataURL.startsWith("/") &&
-      !blurComplete
-        ? {
-            backgroundSize: style?.objectFit || "cover",
-            backgroundPosition: style?.objectPosition || "50% 50%",
-            backgroundRepeat: "no-repeat",
-            backgroundImage: `url("${automaticallyCalculatedBlurDataURL}")`,
-          }
-        : undefined;
-    const isStaticImage = typeof src === "object";
-
-    let _src = isStaticImage ? src.src : src;
-    if (basePath && !isStaticImage && _src.startsWith("/")) {
-      _src = basePath + _src;
-    }
-    if (basePath && !isStaticImage && !_src.startsWith("/")) {
-      _src = basePath + "/" + _src;
-    }
-
-    // Memoize the loader function
-    const imageLoader = useMemo(() => {
-      return imageError || unoptimized === true
-        ? () => fallbackLoader({ src: overrideSrc || src })
-        : (e: { width: number }) =>
-            optimizedLoader({ src, width: e.width, basePath });
-    }, [imageError, unoptimized, overrideSrc, src, basePath]);
-
-    const handleError = useCallback(
-      (error: any) => {
-        setImageError(true);
-        setBlurComplete(true);
-        // execute the onError function if provided
-        onError && onError(error);
-      },
-      [onError]
-    );
-
-    const handleLoad = useCallback(
-      (e: any) => {
-        // for some configurations, the onError handler is not called on an error occurrence
-        // so we need to check if the image is loaded correctly
-        const target = e.target as HTMLImageElement;
-        if (target.naturalWidth === 0) {
-          // Broken image, fall back to unoptimized (meaning the original image src)
-          setImageError(true);
+    const fillStyle: React.CSSProperties | undefined = fill
+      ? {
+          position: "absolute",
+          height: "100%",
+          width: "100%",
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          color: "transparent",
         }
-        setBlurComplete(true);
-
-        // execute the onLoad callback if present
-        onLoad && onLoad(e);
-      },
-      [onLoad]
-    );
+      : undefined;
 
     return (
-      <Image
+      <img
         ref={ref}
         alt={alt}
+        src={imageProps.src}
+        srcSet={imageProps.srcSet}
+        sizes={imageProps.sizes}
+        width={fill ? undefined : imageProps.width}
+        height={fill ? undefined : imageProps.height}
+        loading={priority ? "eager" : (loading || "lazy")}
+        decoding="async"
+        className={className}
+        style={{ ...fillStyle, ...style }}
         {...rest}
-        {...(width && { width })}
-        {...(height && { height })}
-        {...(loading && { loading })}
-        {...(className && { className })}
-        {...(onLoad && { onLoad })}
-        {...(overrideSrc && { overrideSrc })}
-        // if the blurStyle is not "empty", then we take care of the blur behavior ourselves
-        // if the blur is complete, we also set the placeholder to empty as it otherwise shows
-        // the background image on transparent images
-        {...(placeholder && {
-          placeholder: blurStyle || blurComplete ? "empty" : placeholder,
-        })}
-        {...(unoptimized && { unoptimized })}
-        {...(priority && { priority })}
-        {...(isSVG && { unoptimized: true })}
-        style={{ ...style, ...blurStyle }}
-        loader={imageLoader}
-        blurDataURL={automaticallyCalculatedBlurDataURL}
-        onError={handleError}
-        onLoad={handleLoad}
-        src={isStaticImage ? src : _src}
       />
     );
   }

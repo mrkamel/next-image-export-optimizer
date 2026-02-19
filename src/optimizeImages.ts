@@ -96,7 +96,6 @@ const nextImageExportOptimizer = async function () {
   let imageSizes = [16, 32, 48, 64, 96, 128, 256, 384];
   let quality = 75;
   let storePicturesInWEBP = true;
-  let blurSize: number[] = [];
   let remoteImageCacheTTL = 0;
   let exportFolderName = "nextImageExportOptimizer";
   let remoteImagesFolderName = "remoteImages";
@@ -169,13 +168,6 @@ const nextImageExportOptimizer = async function () {
       storePicturesInWEBP =
         newPath.nextImageExportOptimizer_storePicturesInWEBP.toLowerCase() ==
         "true";
-    }
-    if (nextjsConfig.env?.generateAndUseBlurImages?.toLowerCase() == "true") {
-      blurSize = [10];
-    } else if (
-      newPath?.nextImageExportOptimizer_generateAndUseBlurImages == "true"
-    ) {
-      blurSize = [10];
     }
     if (newPath.nextImageExportOptimizer_outputFolderPath !== undefined) {
       exportFolderName = newPath.nextImageExportOptimizer_outputFolderPath;
@@ -382,7 +374,7 @@ const nextImageExportOptimizer = async function () {
     } remote image${remoteImageURLs.length > 1 ? "s" : ""}.`
   );
 
-  let widths = [...blurSize, ...imageSizes, ...deviceSizes];
+  let widths = [...imageSizes, ...deviceSizes];
 
   // sort the widths in ascending order to make sure the logic works for limiting the number of images
   widths.sort((a, b) => a - b);

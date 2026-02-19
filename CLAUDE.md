@@ -22,7 +22,7 @@ npm run exportExample   # Build and export the example Next.js app
 
 1. **CLI Script** (`src/optimizeImages.ts`): Main entry point that orchestrates image optimization. Loads Next.js config, discovers images, and processes them through Sharp. Supports `--nextConfigPath` and `--exportFolderPath` CLI arguments.
 
-2. **ExportedImage Component** (`example/src/ExportedImage.tsx`): React wrapper around Next.js `<Image/>` with custom loader for responsive srcsets. Handles blur placeholders, static imports, remote images, and fallback for failed optimizations.
+2. **ExportedImage Component** (`example/src/ExportedImage.tsx`): React wrapper around Next.js `<Image/>` with custom loader for responsive srcsets. Handles static imports, remote images, and uses `NODE_ENV` to switch between optimized (production) and original (development) images.
 
 3. **Utilities** (`src/utils/`): Helper modules for file discovery, remote image downloading, hash-based caching, and URL-to-filename conversion.
 
@@ -31,7 +31,6 @@ npm run exportExample   # Build and export the example Next.js app
 - **Image Naming**: Optimized images use pattern `{filename}-opt-{width}.{extension}`
 - **Hash Caching**: MD5 hashes stored in `next-image-export-optimizer-hashes.json` prevent re-optimization of unchanged images
 - **Responsive Sizes**: `imageSizes` [16-384px] for responsive images, `deviceSizes` [640-3840px] for full-width
-- **Blur Placeholders**: 10px width images used as CSS background-image (not base64)
 
 ### Configuration
 
@@ -40,7 +39,6 @@ Set via `next.config.js` environment variables:
 - `nextImageExportOptimizer_exportFolderPath`: Output folder (default: "out")
 - `nextImageExportOptimizer_quality`: Compression quality (default: "75")
 - `nextImageExportOptimizer_storePicturesInWEBP`: Enable WebP output
-- `nextImageExportOptimizer_generateAndUseBlurImages`: Enable blur placeholders
 
 Legacy config via `images.nextImageExportOptimizer` object is still supported.
 
