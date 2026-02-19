@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 
-const urlToFilename = require("./urlToFilename");
+import urlToFilename from "./urlToFilename";
 
 export async function getRemoteImageURLs(
   remoteImageFileName: string,

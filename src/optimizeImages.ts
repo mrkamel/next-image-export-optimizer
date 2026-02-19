@@ -4,12 +4,12 @@ import { ImageObject } from "./utils/ImageObject";
 
 const defineProgressBar = require("./utils/defineProgressBar");
 const ensureDirectoryExists = require("./utils/ensureDirectoryExists");
-const getAllFilesAsObject = require("./utils/getAllFilesAsObject");
-const getHash = require("./utils/getHash");
+import getAllFilesAsObject from "./utils/getAllFilesAsObject";
+import getHash from "./utils/getHash";
 import { getRemoteImageURLs } from "./utils/getRemoteImageURLs";
 import { downloadImagesInBatches } from "./utils/downloadImagesInBatches";
 
-const urlToFilename = require("./utils/urlToFilename");
+import urlToFilename from "./utils/urlToFilename";
 
 const fs = require("fs");
 const sharp = require("sharp");

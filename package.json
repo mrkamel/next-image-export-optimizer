@@ -36,12 +36,11 @@
     "dist/utils"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc && tsc --project tsconfig.optimizeImages.json",
-    "test": "jest",
-    "test:e2e:basePath": "npx playwright install && BASEPATH=true IMAGESWEBP=false playwright test --config playwright-basePath.config.js",
-    "test:e2e": "npx playwright install && playwright test",
+    "build": "rm -rf dist && tsc && tsc --project tsconfig.optimizeImages.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "exportExample": "cd example && npm run export && cd ..",
-    "prepublishOnly": "npm run build && npm test && npm run test:e2e:basePath && npm run test:e2e",
+    "prepublishOnly": "npm run build && npm test",
     "fetchTags": "git fetch --tags -f"
   },
   "repository": {
@@ -70,13 +69,12 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.1.1",
-    "@playwright/test": "^1.39.0",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.7",
     "eslint": "^9.39.2",
     "eslint-plugin-react": "^7.33.2",
-    "jest": "^29.7.0",
-    "rimraf": "^6.0.1",
-    "ts-jest": "^29.4.6",
-    "ts-node": "^10.9.1"
+    "happy-dom": "^20.6.3",
+    "react-dom": "^19.2.3",
+    "vitest": "^3.1.0"
   }
 }

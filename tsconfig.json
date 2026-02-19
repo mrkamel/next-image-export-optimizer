@@ -103,7 +103,8 @@
     "example",
     "dist",
     "src/optimizeImages.ts",
-    "src/utils"
+    "src/utils",
+    "tests"
   ],
   "files": [
     "example/src/ExportedImage.tsx",

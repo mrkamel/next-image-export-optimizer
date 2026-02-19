@@ -1,8 +1,8 @@
+import fs from "fs";
+import path from "path";
 import { ImageObject } from "./ImageObject";
-const fs = require("fs");
-const path = require("path");
 
-module.exports = function getAllFilesAsObject(
+export default function getAllFilesAsObject(
   basePath: string,
   dirPath: string,
   exportFolderName: string,

@@ -103,6 +103,7 @@
     "example",
     "dist",
     "src/legacy",
-    "src/ExportedImage.tsx"
+    "src/ExportedImage.tsx",
+    "tests"
   ]
 }

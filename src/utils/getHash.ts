@@ -1,8 +1,6 @@
-export {};
+import { createHash } from "crypto";
 
-const { createHash } = require("crypto");
-
-module.exports = function getHash(items: string[]) {
+export default function getHash(items: string[]) {
   const hash = createHash("sha256");
   for (let item of items) {
     if (typeof item === "number") hash.update(String(item));
