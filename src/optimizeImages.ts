@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createRequire } from "module";
 import sharp from "sharp";
 import { ImageObject } from "./utils/ImageObject.js";
 import defineProgressBar from "./utils/defineProgressBar.js";
@@ -235,9 +236,9 @@ export async function optimizeImages(
   fs.writeFileSync(hashFilePath, data);
 
   // Copy to export folder
+  const publicDir = path.join(basePath, "public");
   for (const filePath of allGeneratedImages) {
-    const parts = filePath.split("public");
-    const relativePath = parts.length > 1 ? parts.slice(1).join("public") : filePath;
+    const relativePath = path.relative(publicDir, filePath);
     const fileInBuildFolder = path.join(exportFolderPath, relativePath);
     ensureDirectoryExists(fileInBuildFolder);
     fs.copyFileSync(filePath, fileInBuildFolder);
@@ -253,7 +254,8 @@ export async function optimizeImages(
 
 // CLI wrapper
 export async function cli() {
-  const { default: loadConfig } = await import("next/dist/server/config.js");
+  const require = createRequire(import.meta.url);
+  const loadConfig = require("next/dist/server/config").default;
 
   const nextConfigPathIndex = process.argv.indexOf("--nextConfigPath");
   const exportFolderPathIndex = process.argv.indexOf("--exportFolderPath");
@@ -387,7 +389,11 @@ export async function cli() {
       );
     }
   } catch (e) {
-    console.log("Could not find a next.config.js or next.config.ts file. Use of default values");
+    console.error("\x1b[31m");
+    console.error("next-image-export-optimizer: Could not load next.config.[js/ts].");
+    console.error(e);
+    console.error("\x1b[0m");
+    process.exit(1);
   }
 
   // Override export folder from command line

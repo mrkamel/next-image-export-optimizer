@@ -39,8 +39,7 @@ export default function defineProgressBar() {
       updateProgress();
     },
     stop: () => {
-      const endTime = Date.now();
-      const elapsedTime = endTime - startTime;
+      const elapsedTime = startTime === undefined ? 0 : Date.now() - startTime;
       process.stdout.write(
         `\nFinished optimization in: ${msToTime(elapsedTime)}\n`
       );
