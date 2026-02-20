@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ImageObject } from "./ImageObject";
+import { ImageObject } from "./ImageObject.js";
 
 export default function getAllFilesAsObject(
   basePath: string,

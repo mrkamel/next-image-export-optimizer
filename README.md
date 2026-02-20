@@ -288,25 +288,8 @@ If you do not want to use the WEBP format, set the `nextImageExportOptimizer_sto
   />;
   ```
 
-- You can still use the legacy image component `next/legacy/image`:
-
-  ```javascript
-  import ExportedImage from "next-image-export-optimizer/legacy/ExportedImage";
-
-  import testPictureStatic from "PATH_TO_IMAGE/test_static.jpg";
-
-  <ExportedImage src={testPictureStatic} alt="Static Image" layout="fixed" />;
-  ```
-
 - Animated images:
   You can use .gif and animated .webp images. Next-image-export-optimizer will automatically optimize the animated images and generate the srcset for the different resolutions.
 
   If you set the variable nextImageExportOptimizer_storePicturesInWEBP to true, the animated images will be converted to .webp format which can reduce the file size significantly.
   Note that animated png images are not supported by this package.
-
-## Live example
-
-You can see a live example of the use of this library at [reactapp.dev/next-image-export-optimizer](https://reactapp.dev/next-image-export-optimizer)
-
-> **Warning**
-> Version 1.0.0 is a breaking change. It follows the changes introduced in Next 13.0.0 which replaces the `next/image` component with `next/future/image`. If you are using Next 12 or below, please use version _0.17.1_.

@@ -4,44 +4,24 @@
   "description": "Optimizes all static images for Next.js static HTML export functionality",
   "main": "dist/ExportedImage.js",
   "types": "dist/ExportedImage.d.ts",
-  "bin": "dist/optimizeImages.js",
+  "bin": "dist/cli.js",
   "engines": {
     "node": ">=16.0.0"
   },
   "exports": {
     ".": {
       "types": "./dist/ExportedImage.d.ts",
-      "require": "./dist/ExportedImage.js",
       "import": "./dist/ExportedImage.js"
-    },
-    "./legacy/ExportedImage": {
-      "types": "./dist/legacy/ExportedImage.d.ts",
-      "require": "./dist/legacy/ExportedImage.js",
-      "import": "./dist/legacy/ExportedImage.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "legacy/ExportedImage": [
-        "./dist/legacy/ExportedImage.d.ts"
-      ]
     }
   },
   "files": [
-    "dist/ExportedImage.js",
-    "dist/ExportedImage.d.ts",
-    "dist/legacy/ExportedImage.js",
-    "dist/legacy/ExportedImage.d.ts",
-    "dist/optimizeImages.js",
-    "dist/utils"
+    "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc && tsc --project tsconfig.optimizeImages.json",
+    "build": "rm -rf dist && tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "exportExample": "cd example && npm run export && cd ..",
-    "prepublishOnly": "npm run build && npm test",
-    "fetchTags": "git fetch --tags -f"
+    "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
     "type": "git",
