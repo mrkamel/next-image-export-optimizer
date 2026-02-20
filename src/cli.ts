@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-import { cli } from "./optimizeImages";
+import { cli } from "./optimizeImages.js";
 
 cli();

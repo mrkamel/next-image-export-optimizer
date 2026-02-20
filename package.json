@@ -2,6 +2,7 @@
   "name": "@mrkamel/next-image-export-optimizer",
   "version": "0.0.1",
   "description": "Optimizes all static images for Next.js static HTML export functionality",
+  "type": "module",
   "main": "dist/ExportedImage.js",
   "types": "dist/ExportedImage.d.ts",
   "bin": "dist/cli.js",

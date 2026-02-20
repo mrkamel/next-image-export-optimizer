@@ -1,14 +1,14 @@
 import fs from "fs";
 import path from "path";
 import sharp from "sharp";
-import { ImageObject } from "./utils/ImageObject";
-import defineProgressBar from "./utils/defineProgressBar";
-import ensureDirectoryExists from "./utils/ensureDirectoryExists";
-import getAllFilesAsObject from "./utils/getAllFilesAsObject";
-import getHash from "./utils/getHash";
-import { getRemoteImageURLs } from "./utils/getRemoteImageURLs";
-import { downloadImagesInBatches } from "./utils/downloadImagesInBatches";
-import urlToFilename from "./utils/urlToFilename";
+import { ImageObject } from "./utils/ImageObject.js";
+import defineProgressBar from "./utils/defineProgressBar.js";
+import ensureDirectoryExists from "./utils/ensureDirectoryExists.js";
+import getAllFilesAsObject from "./utils/getAllFilesAsObject.js";
+import getHash from "./utils/getHash.js";
+import { getRemoteImageURLs } from "./utils/getRemoteImageURLs.js";
+import { downloadImagesInBatches } from "./utils/downloadImagesInBatches.js";
+import urlToFilename from "./utils/urlToFilename.js";
 
 export interface OptimizeImagesConfig {
   imageFolderPath: string;
@@ -253,7 +253,7 @@ export async function optimizeImages(
 
 // CLI wrapper
 export async function cli() {
-  const loadConfig = require("next/dist/server/config").default;
+  const { default: loadConfig } = await import("next/dist/server/config.js");
 
   const nextConfigPathIndex = process.argv.indexOf("--nextConfigPath");
   const exportFolderPathIndex = process.argv.indexOf("--exportFolderPath");
@@ -333,28 +333,21 @@ export async function cli() {
       throw new Error("next.config.[js/ts] is not an object");
     }
 
-    const legacyPath = nextjsConfig.images?.nextImageExportOptimizer;
-    const newPath = nextjsConfig.env;
+    const env = nextjsConfig.env;
 
-    if (legacyPath?.remoteImagesFilename !== undefined) {
-      remoteImageFileName = legacyPath.remoteImagesFilename;
-    } else if (newPath?.nextImageExportOptimizer_remoteImagesFilename !== undefined) {
-      remoteImageFileName = newPath.nextImageExportOptimizer_remoteImagesFilename;
+    if (env?.nextImageExportOptimizer_remoteImagesFilename !== undefined) {
+      remoteImageFileName = env.nextImageExportOptimizer_remoteImagesFilename;
     }
 
-    if (legacyPath?.imageFolderPath !== undefined) {
-      config.imageFolderPath = legacyPath.imageFolderPath;
-    } else if (newPath?.nextImageExportOptimizer_imageFolderPath !== undefined) {
-      config.imageFolderPath = newPath.nextImageExportOptimizer_imageFolderPath;
+    if (env?.nextImageExportOptimizer_imageFolderPath !== undefined) {
+      config.imageFolderPath = env.nextImageExportOptimizer_imageFolderPath;
       if (config.imageFolderPath.startsWith("/")) {
         config.imageFolderPath = config.imageFolderPath.slice(1);
       }
     }
 
-    if (legacyPath?.exportFolderPath !== undefined) {
-      config.exportFolderPath = legacyPath.exportFolderPath;
-    } else if (newPath?.nextImageExportOptimizer_exportFolderPath !== undefined) {
-      config.exportFolderPath = newPath.nextImageExportOptimizer_exportFolderPath;
+    if (env?.nextImageExportOptimizer_exportFolderPath !== undefined) {
+      config.exportFolderPath = env.nextImageExportOptimizer_exportFolderPath;
     }
 
     if (nextjsConfig.images?.deviceSizes !== undefined) {
@@ -364,28 +357,23 @@ export async function cli() {
       config.imageSizes = nextjsConfig.images.imageSizes;
     }
 
-    if (legacyPath?.quality !== undefined) {
-      config.quality = Number(legacyPath.quality);
-    } else if (newPath?.nextImageExportOptimizer_quality !== undefined) {
-      config.quality = Number(newPath.nextImageExportOptimizer_quality);
+    if (env?.nextImageExportOptimizer_quality !== undefined) {
+      config.quality = Number(env.nextImageExportOptimizer_quality);
     }
 
-    if (nextjsConfig.env?.storePicturesInWEBP !== undefined) {
+    if (env?.nextImageExportOptimizer_storePicturesInWEBP !== undefined) {
       config.storePicturesInWEBP =
-        nextjsConfig.env.storePicturesInWEBP.toLowerCase() === "true";
-    } else if (newPath?.nextImageExportOptimizer_storePicturesInWEBP !== undefined) {
-      config.storePicturesInWEBP =
-        newPath.nextImageExportOptimizer_storePicturesInWEBP.toLowerCase() === "true";
+        env.nextImageExportOptimizer_storePicturesInWEBP.toLowerCase() === "true";
     }
 
-    if (newPath?.nextImageExportOptimizer_outputFolderPath !== undefined) {
-      config.exportFolderName = newPath.nextImageExportOptimizer_outputFolderPath;
+    if (env?.nextImageExportOptimizer_outputFolderPath !== undefined) {
+      config.exportFolderName = env.nextImageExportOptimizer_outputFolderPath;
     }
-    if (newPath?.nextImageExportOptimizer_remoteImagesFolderName !== undefined) {
-      config.remoteImagesFolderName = newPath.nextImageExportOptimizer_remoteImagesFolderName;
+    if (env?.nextImageExportOptimizer_remoteImagesFolderName !== undefined) {
+      config.remoteImagesFolderName = env.nextImageExportOptimizer_remoteImagesFolderName;
     }
-    if (newPath?.nextImageExportOptimizer_remoteImageCacheTTL !== undefined) {
-      remoteImageCacheTTL = Number(newPath.nextImageExportOptimizer_remoteImageCacheTTL);
+    if (env?.nextImageExportOptimizer_remoteImageCacheTTL !== undefined) {
+      remoteImageCacheTTL = Number(env.nextImageExportOptimizer_remoteImageCacheTTL);
     }
 
     if (
